@@ -1,0 +1,7 @@
+{
+  "name": "Meu Documento",
+  "description": "Uma plataforma segura e intuitiva para organização de documentos pessoais com categorização inteligente.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
