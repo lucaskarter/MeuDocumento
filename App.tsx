@@ -59,7 +59,7 @@ const Logo = ({ className = "h-12", showText = true }: { className?: string, sho
 
     return (
         <img 
-            src="/logo.png" 
+            src="logo.png" 
             alt="Meu Documento" 
             className={`${className} object-contain`}
             onError={() => setImgError(true)}
