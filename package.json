@@ -9,13 +9,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lucide-react": "^0.562.0",
+    "lucide-react": "0.292.0",
     "react-dom": "^19.2.3",
-    "@google/genai": "^1.34.0",
     "react": "^19.2.3",
+    "@google/genai": "0.1.0",
     "jspdf": "2.5.1",
     "pdf-lib": "1.17.1",
-    "pdfjs-dist": "3.11.174"
+    "pdfjs-dist": "3.11.174",
+    "./App": "latest",
+    "./types": "latest",
+    "./constants": "latest",
+    "./services/storage": "latest",
+    "./services/geminiService": "latest",
+    "./services/pdfService": "latest",
+    "./components/Button": "latest",
+    "./components/Input": "latest",
+    "./components/CreateFolderModal": "latest",
+    "./components/EditFolderModal": "latest",
+    "./components/DeleteFolderModal": "latest",
+    "./components/UploadDocumentModal": "latest",
+    "./components/ImagePreviewModal": "latest",
+    "./components/EditDocumentModal": "latest",
+    "./components/ScanPdfModal": "latest",
+    "./components/MergePdfModal": "latest",
+    "./components/PdfThumbnail": "latest"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
