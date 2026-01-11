@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Meu DocumentoPL",
+  "description": "Uma plataforma segura e intuitiva para organização de documentos pessoais com categorização inteligente.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
