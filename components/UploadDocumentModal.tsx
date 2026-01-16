@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileImage, Sparkles, Loader2, StickyNote, FileText } from 'lucide-react';
+import { X, Upload, FileImage, Sparkles, Loader2, StickyNote, FileText, CalendarClock } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { analyzeDocumentImage } from '../services/geminiService';
 
 interface UploadDocumentModalProps {
   onClose: () => void;
-  onUpload: (fileData: string, title: string, description: string, tags: string[]) => void;
+  onUpload: (fileData: string, title: string, description: string, tags: string[], dueDate?: number) => void;
 }
 
 type TabMode = 'file' | 'text';
@@ -23,6 +23,7 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClos
   // Shared State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDateStr, setDueDateStr] = useState('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,22 +53,21 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClos
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Convert date string (YYYY-MM-DD) to timestamp if present
+    let dueDateTimestamp: number | undefined;
+    if (dueDateStr) {
+      // Create date at noon to avoid timezone rolling it back a day upon conversion
+      dueDateTimestamp = new Date(dueDateStr + 'T12:00:00').getTime();
+    }
+
     if (mode === 'file') {
         if (preview && title) {
-            onUpload(preview, title, description, []);
+            onUpload(preview, title, description, [], dueDateTimestamp);
         }
     } else {
-        // Text mode: Pass empty string as fileData, but we'll handle the type in the parent or use a specific marker
         if (title) {
-            // Use a special prefix or just empty string. 
-            // In App.tsx we handle creation. If we pass empty string, the App logic 
-            // needs to know it's a text doc.
-            // We will pass a specific data URI for text docs or just empty.
-            // Let's pass a placeholder data URI to avoid breaking existing image logic temporarily,
-            // or better, pass empty and ensure App.tsx handles it.
-            // For now, let's pass a flag by using a specific "text" marker in fileData if needed,
-            // OR let the parent handle the "fileType" based on empty fileData.
-            onUpload('', title, description, ['text-note']);
+            onUpload('', title, description, ['text-note'], dueDateTimestamp);
         }
     }
   };
@@ -167,6 +167,20 @@ export const UploadDocumentModal: React.FC<UploadDocumentModalProps> = ({ onClos
               onChange={(e) => setTitle(e.target.value)}
               required
             />
+
+            {/* Date Input */}
+            <div className="flex flex-col gap-1 w-full">
+               <label className="text-sm font-semibold text-brand-dark flex items-center gap-1">
+                  <CalendarClock size={16} /> Data de Vencimento (Opcional)
+               </label>
+               <input 
+                 type="date"
+                 className="px-4 py-3 rounded-xl border-2 border-brand-light focus:border-brand-primary focus:ring-2 focus:ring-brand-light outline-none transition-all bg-white/80 text-brand-dark placeholder:text-gray-400 w-full cursor-text"
+                 value={dueDateStr}
+                 onChange={(e) => setDueDateStr(e.target.value)}
+               />
+               <span className="text-xs text-gray-400">Nós avisaremos quando estiver perto de vencer.</span>
+            </div>
             
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-brand-dark">

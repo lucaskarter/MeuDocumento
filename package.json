@@ -15,7 +15,8 @@
     "react-dom": "^19.2.3",
     "react": "^19.2.3",
     "pdfjs-dist": "^5.4.530",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "firebase": "^12.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,11 +1,9 @@
 import { Document, Folder, User } from '../types';
-import { DEFAULT_FOLDERS, MOCK_USER } from '../constants';
+import { DEFAULT_FOLDERS } from '../constants';
 
 const KEYS = {
-  USER: 'docusafe_user',
-  PASSWORD: 'docusafe_password',
   FOLDERS: 'docusafe_folders',
-  DOCUMENTS: 'docusafe_documents', // Legacy key for migration
+  DOCUMENTS: 'docusafe_documents',
 };
 
 // --- IndexedDB Configuration ---
@@ -38,7 +36,6 @@ const migrateFromLocalStorage = async () => {
         const tx = db.transaction(STORE_DOCS, 'readwrite');
         const store = tx.objectStore(STORE_DOCS);
         
-        // Use Promise.all to wait for all puts
         await Promise.all(parsed.map(doc => {
             return new Promise<void>((res, rej) => {
                 const req = store.put(doc);
@@ -47,43 +44,11 @@ const migrateFromLocalStorage = async () => {
             });
         }));
       }
-      localStorage.removeItem(KEYS.DOCUMENTS); // Clear after migration
+      localStorage.removeItem(KEYS.DOCUMENTS);
     } catch (e) {
       console.error("Migration failed", e);
     }
   }
-};
-
-// --- User / Auth (Synchronous - localStorage) ---
-export const getStoredUser = (): User | null => {
-  const data = localStorage.getItem(KEYS.USER);
-  return data ? JSON.parse(data) : null;
-};
-
-export const loginUser = (email: string, password: string, name?: string): User => {
-  const user = { 
-    ...MOCK_USER, 
-    email,
-    name: name || MOCK_USER.name 
-  };
-  localStorage.setItem(KEYS.USER, JSON.stringify(user));
-  localStorage.setItem(KEYS.PASSWORD, password);
-  
-  if (!getFolders().length) {
-    saveFolders(DEFAULT_FOLDERS);
-  }
-  
-  return user;
-};
-
-export const verifyPassword = (inputPassword: string): boolean => {
-  const stored = localStorage.getItem(KEYS.PASSWORD);
-  return stored === inputPassword;
-};
-
-export const logoutUser = (): void => {
-  localStorage.removeItem(KEYS.USER);
-  localStorage.removeItem(KEYS.PASSWORD);
 };
 
 // --- Folders (Synchronous - localStorage) ---
@@ -95,6 +60,12 @@ export const getFolders = (): Folder[] => {
 export const saveFolders = (folders: Folder[]): void => {
   localStorage.setItem(KEYS.FOLDERS, JSON.stringify(folders));
 };
+
+export const createDefaultFolders = (): void => {
+    if (getFolders().length === 0) {
+        saveFolders(DEFAULT_FOLDERS);
+    }
+}
 
 export const createFolder = (name: string, coverColor: string, icon: string): Folder => {
   const folders = getFolders();
@@ -116,12 +87,10 @@ export const updateFolder = (updatedFolder: Folder): void => {
 };
 
 export const deleteFolder = async (folderId: string): Promise<void> => {
-  // Delete folder from localStorage
   const folders = getFolders();
   const newFolders = folders.filter(f => f.id !== folderId);
   saveFolders(newFolders);
 
-  // Cascade delete documents from IndexedDB
   const docs = await getDocuments(folderId);
   const db = await getDB();
   const tx = db.transaction(STORE_DOCS, 'readwrite');

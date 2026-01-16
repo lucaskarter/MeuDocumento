@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { Button } from './Button';
-import { Input } from './Input';
-import { verifyPassword } from '../services/storage';
 
 interface DeleteFolderModalProps {
   folderName: string;
@@ -11,16 +9,9 @@ interface DeleteFolderModalProps {
 }
 
 export const DeleteFolderModal: React.FC<DeleteFolderModalProps> = ({ folderName, onClose, onConfirm }) => {
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyPassword(password)) {
-      onConfirm();
-    } else {
-      setError('Senha incorreta.');
-    }
+    onConfirm();
   };
 
   return (
@@ -32,7 +23,7 @@ export const DeleteFolderModal: React.FC<DeleteFolderModalProps> = ({ folderName
                 <AlertTriangle className="w-6 h-6 text-red-500" />
                 Excluir Pasta
             </h2>
-            <p className="text-gray-500 text-sm mt-1">Isso excluirá "{folderName}" e todos os documentos dentro dela.</p>
+            <p className="text-gray-500 text-sm mt-1">Isso excluirá "{folderName}" e todos os documentos dentro dela permanentemente.</p>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100 text-gray-500">
             <X size={20} />
@@ -40,20 +31,9 @@ export const DeleteFolderModal: React.FC<DeleteFolderModalProps> = ({ folderName
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Input 
-            label="Confirme sua Senha" 
-            type="password"
-            placeholder="Sua senha de login"
-            value={password}
-            onChange={(e) => {
-                setPassword(e.target.value);
-                setError('');
-            }}
-            required
-            className={error ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}
-          />
-          
-          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+          <p className="text-sm font-medium text-gray-700 bg-red-50 p-3 rounded-lg border border-red-100">
+            Tem certeza? Esta ação não pode ser desfeita.
+          </p>
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">

@@ -18,8 +18,14 @@ interface ImagePreviewModalProps {
   onClose: () => void;
 }
 
+interface PdfPageProps {
+  pdf: any;
+  pageNumber: number;
+  scale?: number;
+}
+
 // Internal component to render a single PDF page
-const PdfPage = ({ pdf, pageNumber, scale = 1.5 }: { pdf: any, pageNumber: number, scale?: number }) => {
+const PdfPage: React.FC<PdfPageProps> = ({ pdf, pageNumber, scale = 1.5 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [loading, setLoading] = useState(true);
 

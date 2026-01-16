@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 // Rename File to FileIcon to avoid conflict with the global File constructor
-import { Shield, Plus, LogOut, ArrowLeft, Search, User as UserIcon, Lock, Trash2, Eye, Pencil, Share2, MoreVertical, Key, FileText, DollarSign, Briefcase, File as FileIcon, CreditCard, ScanLine, FileStack, X, Folder as FolderIcon, StickyNote, AlignLeft } from 'lucide-react';
+import { Shield, Plus, LogOut, ArrowLeft, Search, User as UserIcon, Lock, Trash2, Eye, Pencil, Share2, MoreVertical, Key, FileText, DollarSign, Briefcase, File as FileIcon, CreditCard, ScanLine, FileStack, X, Folder as FolderIcon, StickyNote, AlignLeft, Clock, Loader2 } from 'lucide-react';
 import { User, Folder, Document, ViewState, FolderColor } from './types';
 import { 
-  getStoredUser, loginUser, logoutUser, 
   getFolders, createFolder as serviceCreateFolder, updateFolder, deleteFolder,
-  getDocuments, addDocument, deleteDocument, updateDocument
+  getDocuments, addDocument, deleteDocument, updateDocument, createDefaultFolders
 } from './services/storage';
+
+// Firebase Imports
+import { 
+    auth, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    onAuthStateChanged,
+    updateProfile 
+} from './services/firebase';
+
 import { Input } from './components/Input';
 import { Button } from './components/Button';
 import { CreateFolderModal } from './components/CreateFolderModal';
@@ -70,6 +80,8 @@ const Logo = ({ className = "h-12", showText = true }: { className?: string, sho
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true); // Loading state for initial auth check
+
   const [folders, setFolders] = useState<Folder[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
@@ -89,25 +101,40 @@ export default function App() {
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
   
-  // Auth State
+  // Auth Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState(''); 
   const [name, setName] = useState(''); 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isAuthProcessing, setIsAuthProcessing] = useState(false);
 
   // Toast
   const { showToast } = useToast();
 
-  // Initialize
+  // Initialize Auth Listener
   useEffect(() => {
-    const init = async () => {
-      const storedUser = getStoredUser();
-      if (storedUser) {
-        setUser(storedUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Map Firebase user to App User
+        const appUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Usuário',
+            email: firebaseUser.email || ''
+        };
+        setUser(appUser);
+        
+        // Ensure default folders exist
+        createDefaultFolders();
         await loadData();
+      } else {
+        setUser(null);
+        setDocuments([]);
+        setFolders([]);
       }
-    };
-    init();
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadData = async () => {
@@ -116,24 +143,65 @@ export default function App() {
     setDocuments(docs);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      const loggedUser = loginUser(email, password, isRegistering ? name : undefined);
-      setUser(loggedUser);
-      await loadData();
-      showToast(`Bem-vindo, ${loggedUser.name}!`, 'success');
+    if (!email || !password) {
+        showToast('Preencha todos os campos.', 'error');
+        return;
+    }
+
+    setIsAuthProcessing(true);
+
+    try {
+        if (isRegistering) {
+            if (!name) {
+                showToast('O nome é obrigatório para cadastro.', 'error');
+                setIsAuthProcessing(false);
+                return;
+            }
+            
+            // Register
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // Update Profile with Name
+            await updateProfile(userCredential.user, { displayName: name });
+            
+            showToast('Conta criada com sucesso!', 'success');
+            // State user updates automatically via useEffect hook
+        } else {
+            // Login
+            await signInWithEmailAndPassword(auth, email, password);
+            showToast(`Bem-vindo de volta!`, 'success');
+        }
+        
+        // Reset form
+        setEmail('');
+        setPassword('');
+        setName('');
+
+    } catch (error: any) {
+        console.error("Auth error", error);
+        let msg = 'Erro ao realizar autenticação.';
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') msg = 'Email ou senha inválidos.';
+        if (error.code === 'auth/email-already-in-use') msg = 'Este email já está em uso.';
+        if (error.code === 'auth/weak-password') msg = 'A senha deve ter pelo menos 6 caracteres.';
+        
+        showToast(msg, 'error');
+    } finally {
+        setIsAuthProcessing(false);
     }
   };
 
-  const handleLogout = () => {
-    logoutUser();
-    setUser(null);
-    setCurrentView(ViewState.DASHBOARD);
-    setSelectedFolder(null);
-    setEmail('');
-    setPassword('');
-    showToast('Você saiu com sucesso.', 'info');
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        setCurrentView(ViewState.DASHBOARD);
+        setSelectedFolder(null);
+        setEmail('');
+        setPassword('');
+        showToast('Você saiu com sucesso.', 'info');
+    } catch (error) {
+        console.error("Logout error", error);
+    }
   };
 
   const openFolder = async (folder: Folder) => {
@@ -167,7 +235,7 @@ export default function App() {
     }
   };
 
-  const handleUploadDocument = async (fileData: string, title: string, description: string, tags: string[]) => {
+  const handleUploadDocument = async (fileData: string, title: string, description: string, tags: string[], dueDate?: number) => {
     if (!selectedFolder) return;
     
     // Determine file type. If fileData is empty, it's a text note.
@@ -181,6 +249,7 @@ export default function App() {
       fileData, // Might be empty for text notes
       fileType,
       createdAt: Date.now(),
+      dueDate,
       tags
     };
     
@@ -317,7 +386,41 @@ export default function App() {
       }
   };
 
+  // Helper to calculate days remaining
+  const getExpirationStatus = (dueDate?: number) => {
+      if (!dueDate) return null;
+      
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      
+      const due = new Date(dueDate);
+      due.setHours(0,0,0,0);
+      
+      const diffTime = due.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 60) {
+          if (diffDays < 0) return { label: 'Vencido', color: 'bg-red-100 text-red-600 border-red-200' };
+          if (diffDays === 0) return { label: 'Vence Hoje', color: 'bg-red-100 text-red-600 border-red-200' };
+          if (diffDays <= 7) return { label: `Vence em ${diffDays} dias`, color: 'bg-orange-100 text-orange-600 border-orange-200' };
+          return { label: `Vence em ${diffDays} dias`, color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+      }
+      return null;
+  };
+
   // --- Views ---
+  
+  // Loading Check
+  if (authLoading) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-brand-cream">
+              <div className="flex flex-col items-center gap-4">
+                <Logo className="h-20 w-20 animate-pulse" showText={false} />
+                <p className="text-brand-primary font-medium">Carregando...</p>
+              </div>
+          </div>
+      );
+  }
 
   if (!user) {
     return (
@@ -328,7 +431,7 @@ export default function App() {
             <p className="text-brand-primary mt-2">Segurança para seus documentos</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleAuthSubmit} className="space-y-6">
             {isRegistering && (
                 <Input 
                   label="Seu Nome" 
@@ -356,15 +459,28 @@ export default function App() {
               required
             />
             
-            <Button type="submit" className="w-full py-3 text-lg">
-              {isRegistering ? 'Criar Conta Grátis' : 'Entrar na Plataforma'}
+            <Button type="submit" className="w-full py-3 text-lg" disabled={isAuthProcessing}>
+              {isAuthProcessing ? (
+                  <>
+                    <Loader2 className="animate-spin w-5 h-5" /> Processando...
+                  </>
+              ) : (
+                  isRegistering ? 'Criar Conta Grátis' : 'Entrar na Plataforma'
+              )}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <button 
-              onClick={() => setIsRegistering(!isRegistering)}
+              onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  // Clear fields when switching mode
+                  setEmail('');
+                  setPassword('');
+                  setName('');
+              }}
               className="text-brand-primary font-medium hover:underline text-sm"
+              disabled={isAuthProcessing}
             >
               {isRegistering ? 'Já tem conta? Fazer Login' : 'Não tem conta? Cadastre-se'}
             </button>
@@ -488,6 +604,7 @@ export default function App() {
                    ) : (
                        <div className="space-y-3">
                            {getFilteredDocuments().map(doc => {
+                               const expirationStatus = getExpirationStatus(doc.dueDate);
                                return (
                                    <div key={doc.id} className="bg-white rounded-xl p-3 shadow-md hover:shadow-lg transition-all flex items-center gap-4 group">
                                        {/* Thumbnail */}
@@ -503,7 +620,14 @@ export default function App() {
 
                                        {/* Info */}
                                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setViewingDoc(doc)}>
-                                           <h4 className="font-bold text-brand-dark truncate">{doc.title}</h4>
+                                           <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-brand-dark truncate">{doc.title}</h4>
+                                                {expirationStatus && (
+                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${expirationStatus.color}`}>
+                                                        {expirationStatus.label}
+                                                    </span>
+                                                )}
+                                           </div>
                                            <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-xs font-medium text-brand-primary bg-brand-light/30 px-2 py-0.5 rounded-full flex items-center gap-1 truncate">
                                                     <FolderIcon size={10} />
@@ -597,6 +721,7 @@ export default function App() {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {documents.map(doc => {
+                        const expirationStatus = getExpirationStatus(doc.dueDate);
                         return (
                         <div key={doc.id} className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all group">
                             <div 
@@ -615,7 +740,15 @@ export default function App() {
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-bold text-brand-dark line-clamp-1" title={doc.title}>{doc.title}</h4>
                                 </div>
-                                <p className="text-xs text-gray-500 mb-3">{new Date(doc.createdAt).toLocaleDateString()}</p>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    <span className="text-xs text-gray-500">{new Date(doc.createdAt).toLocaleDateString()}</span>
+                                    {expirationStatus && (
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${expirationStatus.color}`}>
+                                            <Clock size={10} /> {expirationStatus.label}
+                                        </span>
+                                    )}
+                                </div>
+                                
                                 {doc.description && doc.fileType !== 'text/plain' && (
                                     <p className="text-sm text-gray-600 line-clamp-2 bg-gray-50 p-2 rounded-lg mb-4 h-14">{doc.description}</p>
                                 )}

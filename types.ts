@@ -12,6 +12,7 @@ export interface Document {
   fileData: string; // Base64 for demo purposes
   fileType: string;
   createdAt: number;
+  dueDate?: number; // Timestamp for expiration date
   tags?: string[];
 }
 

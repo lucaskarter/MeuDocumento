@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Save, FileImage, RefreshCw } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Save, FileImage, RefreshCw, CalendarClock } from 'lucide-react';
 import { Button } from './Button';
 import { Input } from './Input';
 import { Document } from '../types';
@@ -14,6 +14,13 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({ document, 
   const [fileData, setFileData] = useState(document.fileData);
   const [title, setTitle] = useState(document.title);
   const [description, setDescription] = useState(document.description || '');
+  
+  // Initialize date string from timestamp (convert to YYYY-MM-DD)
+  const [dueDateStr, setDueDateStr] = useState(() => {
+    if (!document.dueDate) return '';
+    return new Date(document.dueDate).toISOString().split('T')[0];
+  });
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isText = document.fileType === 'text/plain';
@@ -32,11 +39,17 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({ document, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title) {
+      let dueDateTimestamp: number | undefined;
+      if (dueDateStr) {
+        dueDateTimestamp = new Date(dueDateStr + 'T12:00:00').getTime();
+      }
+
       onSave({
         ...document,
         title,
         description,
-        fileData
+        fileData,
+        dueDate: dueDateTimestamp
       });
     }
   };
@@ -89,6 +102,19 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({ document, 
               onChange={(e) => setTitle(e.target.value)}
               required
             />
+
+            {/* Date Input */}
+            <div className="flex flex-col gap-1 w-full">
+               <label className="text-sm font-semibold text-brand-dark flex items-center gap-1">
+                  <CalendarClock size={16} /> Data de Vencimento (Opcional)
+               </label>
+               <input 
+                 type="date"
+                 className="px-4 py-3 rounded-xl border-2 border-brand-light focus:border-brand-primary focus:ring-2 focus:ring-brand-light outline-none transition-all bg-white/80 text-brand-dark placeholder:text-gray-400 w-full cursor-text"
+                 value={dueDateStr}
+                 onChange={(e) => setDueDateStr(e.target.value)}
+               />
+            </div>
             
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-brand-dark">{isText ? 'Conteúdo' : 'Descrição'}</label>
