@@ -1,5 +1,12 @@
-import firebase from "firebase/app";
-import "firebase/auth";
+import { initializeApp } from "firebase/app";
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  updateProfile
+} from "firebase/auth";
 
 // --- CONFIGURAÇÃO DO FIREBASE ---
 // SUBSTITUA OS VALORES ABAIXO PELAS SUAS CHAVES DO FIREBASE CONSOLE
@@ -15,33 +22,17 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// Use existing app if initialized to prevent hot-reload errors
-const app = !firebase.apps.length 
-  ? firebase.initializeApp(firebaseConfig) 
-  : firebase.app();
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 
-// Export auth instance
-export const auth = app.auth();
-
-// Adapters to match Firebase v9 Modular API signatures used in the application
-export const signInWithEmailAndPassword = (authInstance: any, email: string, password: string) => {
-  return authInstance.signInWithEmailAndPassword(email, password);
+// Export functions to be used by the app
+export { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged, 
+  updateProfile 
 };
 
-export const createUserWithEmailAndPassword = (authInstance: any, email: string, password: string) => {
-  return authInstance.createUserWithEmailAndPassword(email, password);
-};
-
-export const signOut = (authInstance: any) => {
-  return authInstance.signOut();
-};
-
-export const onAuthStateChanged = (authInstance: any, callback: (user: any) => void) => {
-  return authInstance.onAuthStateChanged(callback);
-};
-
-export const updateProfile = (user: any, profile: { displayName?: string, photoURL?: string }) => {
-  return user.updateProfile(profile);
-};
-
+// Define type as any to avoid runtime import issues with JS bundles
 export type FirebaseUser = any;
